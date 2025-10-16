@@ -3,6 +3,8 @@ import os
 import hashlib
 import json
 from functools import wraps
+from flask_cors import CORS 
+
 import db
 import queries
 
@@ -20,6 +22,7 @@ def create_app():
     - Điều này giúp giảm sự phụ thuộc giữa client và server, làm cho API linh hoạt hơn.
     """
     app = Flask(__name__, instance_relative_config=True)
+    CORS(app)
 
     db_path = os.path.join(app.instance_path, 'library.db')
     app.config.from_mapping(DATABASE=db_path)

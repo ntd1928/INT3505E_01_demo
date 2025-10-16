@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import os
 from functools import wraps
 import db
+from flask_cors import CORS 
 import queries
 
 # === CẢI TIẾN V2: Thêm cơ chế Token ===
@@ -22,7 +23,7 @@ def create_app():
       trong một cụm cũng có thể xử lý request một cách độc lập.
     """
     app = Flask(__name__, instance_relative_config=True)
-
+    CORS(app)
     db_path = os.path.join(app.instance_path, 'library.db')
     app.config.from_mapping(
         DATABASE=db_path,
@@ -94,6 +95,26 @@ def create_app():
         book = queries.get_book_by_id(book_id)
         if book: return jsonify(book), 200
         return jsonify({"message": "Book not found"}), 404
+    @app.route('/books', methods=['POST'])
+    def add_book():
+        data = request.get_json()
+        if not data or not all(k in data for k in ("title", "author", "year")):
+            return jsonify({"message": "Missing required fields: title, author, year"}), 400
+        
+        new_book = queries.add_book(data)
+        return jsonify(new_book), 201
+
+    @app.route('/books/<int:book_id>', methods=['PUT'])
+    def update_book(book_id):
+        if not queries.get_book_by_id(book_id):
+            return jsonify({"message": "Book not found"}), 404
+
+        data = request.get_json()
+        if not data or not all(k in data for k in ("title", "author", "year")):
+            return jsonify({"message": "Missing required fields: title, author, year"}), 400
+
+        updated_book = queries.update_book(book_id, data)
+        return jsonify(updated_book), 200
 
     # -- Borrow/Return Endpoints (Cải tiến với @token_required) --
     @app.route('/books/<int:book_id>/borrow', methods=['POST'])

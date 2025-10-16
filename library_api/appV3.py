@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
 import os
 import hashlib
 import json
@@ -22,8 +23,7 @@ def create_app():
       giảm tải cho server.
     """
     app = Flask(__name__, instance_relative_config=True)
-
-    # Cấu hình database (giống V1, V2)
+    CORS(app)
     db_path = os.path.join(app.instance_path, 'library.db')
     app.config.from_mapping(
         DATABASE=db_path,
@@ -35,7 +35,6 @@ def create_app():
 
     db.init_app(app)
 
-    # Decorator token_required kế thừa từ V2
     def token_required(f):
         @wraps(f)
         def decorated(*args, **kwargs):
