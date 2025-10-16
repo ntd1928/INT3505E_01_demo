@@ -1,1 +1,5 @@
-# INT3505E_01_demo
+# 📘 Library Management System
+
+## Data Model:
+
+![Database Diagram](./images/database-diagram.png)
