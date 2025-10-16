@@ -1,12 +1,14 @@
 # app.py
 from flask import Flask, request, jsonify
+from flask_cors import CORS 
 import db
 import queries
 
+#Sever chỉ xử lí request và trả về response json
 def create_app():
 
     app = Flask(__name__)
-    
+    CORS(app)
     db.init_app(app)
 
     # === API Endpoints ===
