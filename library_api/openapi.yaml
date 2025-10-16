@@ -1,0 +1,314 @@
+# Phiên bản OpenAPI
+openapi: 3.0.3
+
+# Thông tin chung về API
+info:
+  title: Library Management API
+  description: API để quản lý người dùng, sách, và các hoạt động mượn/trả sách trong thư viện.
+  version: 1.0.0
+
+# Địa chỉ server
+servers:
+  - url: http://localhost:5000
+    description: Development server
+
+# Gắn thẻ để nhóm các endpoints trong UI
+tags:
+  - name: User Operations
+    description: APIs để quản lý người dùng
+  - name: Book Operations
+    description: APIs để quản lý sách (CRUD)
+  - name: Borrow & Return Operations
+    description: APIs cho việc mượn và trả sách
+
+# Định nghĩa tất cả các endpoints (đường dẫn)
+paths:
+  # --- User Paths ---
+  /users:
+    get:
+      tags: [User Operations]
+      summary: Lấy danh sách tất cả người dùng 🧑‍🤝‍🧑
+      responses:
+        '200':
+          description: Thành công. Trả về một mảng các người dùng.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags: [User Operations]
+      summary: Tạo một người dùng mới 👤
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '201':
+          description: Tạo người dùng thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Thiếu trường `name` hoặc `email`.
+        '409':
+          description: Email đã tồn tại.
+
+  /users/{user_id}:
+    get:
+      tags: [User Operations]
+      summary: Tìm người dùng theo ID 🆔
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '200':
+          description: Thông tin chi tiết của người dùng.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Không tìm thấy người dùng.
+
+  # --- Book Paths ---
+  /books:
+    get:
+      tags: [Book Operations]
+      summary: Lấy danh sách tất cả sách 📚
+      responses:
+        '200':
+          description: Thành công. Trả về một mảng các cuốn sách.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+    post:
+      tags: [Book Operations]
+      summary: Thêm một sách mới 📖
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewBook'
+      responses:
+        '201':
+          description: Tạo sách thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          description: Thiếu các trường bắt buộc.
+
+  /books/{book_id}:
+    get:
+      tags: [Book Operations]
+      summary: Tìm sách theo ID 🔍
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '200':
+          description: Thông tin chi tiết của sách.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '404':
+          description: Không tìm thấy sách.
+    put:
+      tags: [Book Operations]
+      summary: Cập nhật thông tin sách 🔄
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewBook'
+      responses:
+        '200':
+          description: Cập nhật thành công.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          description: Thiếu các trường bắt buộc.
+        '404':
+          description: Không tìm thấy sách.
+    delete:
+      tags: [Book Operations]
+      summary: Xóa một cuốn sách ❌
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '200':
+          description: Xóa sách thành công.
+        '404':
+          description: Không tìm thấy sách.
+        '409':
+          description: Không thể xóa sách đang được mượn.
+
+  # --- Borrow & Return Paths ---
+  /books/{book_id}/borrow:
+    post:
+      tags: [Borrow & Return Operations]
+      summary: Mượn một cuốn sách 🛒
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: ID của người mượn sách.
+                  example: 1
+              required: [user_id]
+      responses:
+        '201':
+          description: Mượn sách thành công. Trả về thông tin lượt mượn.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BorrowRecord'
+        '400':
+          description: Thiếu `user_id`.
+        '404':
+          description: Không tìm thấy sách hoặc người dùng.
+        '409':
+          description: Sách không có sẵn để mượn.
+
+  /books/{book_id}/return:
+    post:
+      tags: [Borrow & Return Operations]
+      summary: Trả một cuốn sách 📬
+      parameters:
+        - $ref: '#/components/parameters/BookIdParam'
+      responses:
+        '200':
+          description: Trả sách thành công.
+        '400':
+          description: Sách không ở trạng thái đang được mượn.
+        '404':
+          description: Không tìm thấy sách.
+        '500':
+          description: Không tìm thấy bản ghi mượn sách tương ứng.
+
+# Nơi định nghĩa các thành phần có thể tái sử dụng
+components:
+  schemas:
+    # Schema cho đối tượng User đầy đủ
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 1
+        name:
+          type: string
+          example: "Nguyễn Văn A"
+        email:
+          type: string
+          format: email
+          example: "a.nguyen@example.com"
+      required: [id, name, email]
+
+    # Schema để tạo User mới (không có id)
+    NewUser:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Trần Thị B"
+        email:
+          type: string
+          format: email
+          example: "b.tran@example.com"
+      required: [name, email]
+
+    # Schema cho đối tượng Book đầy đủ
+    Book:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+          example: 101
+        title:
+          type: string
+          example: "Lão Hạc"
+        author:
+          type: string
+          example: "Nam Cao"
+        year:
+          type: integer
+          example: 1943
+        status:
+          type: string
+          enum: [available, borrowed]
+          example: "available"
+      required: [id, title, author, year, status]
+
+    # Schema để tạo/cập nhật Book
+    NewBook:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Số Đỏ"
+        author:
+          type: string
+          example: "Vũ Trọng Phụng"
+        year:
+          type: integer
+          example: 1936
+      required: [title, author, year]
+
+    # Schema cho bản ghi mượn sách
+    BorrowRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        book_id:
+          type: integer
+        user_id:
+          type: integer
+        borrow_date:
+          type: string
+          format: date-time
+        return_date:
+          type: string
+          format: date-time
+          nullable: true
+
+  # Các tham số có thể tái sử dụng
+  parameters:
+    BookIdParam:
+      name: book_id
+      in: path
+      description: ID của cuốn sách.
+      required: true
+      schema:
+        type: integer
+    UserIdParam:
+      name: user_id
+      in: path
+      description: ID của người dùng.
+      required: true
+      schema:
+        type: integer
