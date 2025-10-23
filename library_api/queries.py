@@ -1,4 +1,4 @@
-from db import get_db
+from .db import get_db
 from datetime import datetime
 
 # === USER QUERIES ===
@@ -26,11 +26,6 @@ def add_user(data):
         return None
 
 # === BOOK QUERIES ===
-def get_all_books():
-    conn = get_db()
-    books = conn.execute('SELECT * FROM books').fetchall()
-    return [dict(book) for book in books]
-
 def get_book_by_id(book_id):
     conn = get_db()
     book = conn.execute('SELECT * FROM books WHERE id = ?', (book_id,)).fetchone()
@@ -56,7 +51,6 @@ def delete_book(book_id):
     conn = get_db()
     conn.execute('DELETE FROM books WHERE id = ?', (book_id,))
     conn.commit()
-    # Using cursor.rowcount is a more reliable way to check for changes
     return get_db().changes() > 0
 
 # === BORROW/RETURN QUERIES ===
@@ -89,14 +83,11 @@ def return_book(book_id):
     except conn.Error:
         return False
 
-# ======================================================================
-# === CÁC HÀM MỚI ĐƯỢC THÊM VÀO ĐỂ DEMO CÁC TÍNH NĂNG NÂNG CAO ===
-# ======================================================================
+# === CÁC HÀM NÂNG CAO (ĐÃ SỬA LẠI) ===
 
 def get_borrowed_books_by_user(user_id):
     """
     Hàm cho Nesting: Lấy danh sách sách mà một người dùng đang mượn.
-    Sử dụng JOIN để kết hợp thông tin từ bảng books và borrows.
     """
     conn = get_db()
     query = """
@@ -113,43 +104,59 @@ def get_borrowed_books_by_user(user_id):
     books = conn.execute(query, (user_id,)).fetchall()
     return [dict(book) for book in books]
 
-
 def search_and_filter_books(search_term, author, year, page, limit):
     """
     Hàm cho Query Params: Tìm kiếm, lọc và phân trang sách.
-    Xây dựng câu lệnh SQL một cách linh động dựa trên các tham số đầu vào.
     """
     conn = get_db()
     
-    # Bắt đầu với câu query cơ bản và một danh sách các điều kiện WHERE
+    count_query = "SELECT COUNT(id) FROM books"
     base_query = "SELECT * FROM books"
     conditions = []
     params = []
 
-    # 1. Thêm điều kiện tìm kiếm (nếu có)
     if search_term:
         conditions.append("title LIKE ?")
         params.append(f"%{search_term}%")
-
-    # 2. Thêm điều kiện lọc theo tác giả (nếu có)
     if author:
         conditions.append("author = ?")
         params.append(author)
-    
-    # 3. Thêm điều kiện lọc theo năm (nếu có)
     if year:
         conditions.append("year = ?")
         params.append(year)
 
-    # 4. Ghép các điều kiện lại với "AND"
     if conditions:
-        base_query += " WHERE " + " AND ".join(conditions)
+        where_clause = " WHERE " + " AND ".join(conditions)
+        base_query += where_clause
+        count_query += where_clause
+    
+    total_items = conn.execute(count_query, tuple(params)).fetchone()[0]
+    total_pages = (total_items + limit - 1) // limit
 
-    # 5. Thêm logic phân trang
     offset = (page - 1) * limit
-    base_query += " LIMIT ? OFFSET ?"
+    base_query += " ORDER BY id LIMIT ? OFFSET ?"
     params.extend([limit, offset])
 
-    # Thực thi câu query cuối cùng
     results = conn.execute(base_query, tuple(params)).fetchall()
-    return [dict(row) for row in results]
+    
+    return {
+        "items": [dict(row) for row in results],
+        "pagination": {
+            "total_items": total_items,
+            "total_pages": total_pages,
+            "current_page": page,
+            "limit": limit
+        }
+    }
+
+def get_borrow_by_id(borrow_id):
+    """Lấy thông tin một lượt mượn cụ thể bằng ID của nó."""
+    conn = get_db()
+    borrow = conn.execute('SELECT * FROM borrows WHERE borrow_id = ?', (borrow_id,)).fetchone()
+    return dict(borrow) if borrow else None
+
+def get_borrows_by_user_id(user_id):
+    """Lấy tất cả lịch sử mượn sách của một user."""
+    conn = get_db()
+    borrows = conn.execute('SELECT * FROM borrows WHERE user_id = ? ORDER BY borrow_date DESC', (user_id,)).fetchall()
+    return [dict(b) for b in borrows]

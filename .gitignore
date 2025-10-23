@@ -1,0 +1,32 @@
+# --- Môi trường ảo Python ---
+# Luôn bỏ qua thư mục môi trường ảo.
+venv/
+
+# --- File bytecode và cache của Python ---
+# Các file này được Python tự động tạo ra để tăng tốc độ.
+__pycache__/
+*.pyc
+
+# --- Thư mục instance của Flask ---
+# Chứa database và các file cấu hình nhạy cảm không nên đưa lên Git.
+instance/
+
+# --- File cơ sở dữ liệu SQLite ---
+# Bỏ qua tất cả các file có đuôi .db, phòng trường hợp chúng nằm ngoài instance.
+*.db
+*.sqlite3
+
+# --- File môi trường (Environment Variables) ---
+# Cực kỳ quan trọng: Không bao giờ commit các file chứa mật khẩu, API key.
+.env
+.env.*
+
+# --- Cấu hình của các IDE và Editor ---
+# Bỏ qua các thư mục cấu hình riêng của từng editor để tránh xung đột.
+.vscode/
+.idea/
+
+# --- File hệ thống của các hệ điều hành ---
+# Các file ẩn do macOS hoặc Windows tạo ra.
+.DS_Store
+Thumbs.db
