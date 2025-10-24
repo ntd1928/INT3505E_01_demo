@@ -132,7 +132,39 @@ paths:
           description: Tạo sách thành công.
         '400':
           description: Thiếu các trường bắt buộc.
-
+  /books-cursor:
+    get:
+      tags: [Book Operations]
+      summary: Lấy danh sách sách (phân trang bằng con trỏ) 🛰️
+      description: Lấy danh sách sách sử dụng cursor-based pagination để có hiệu suất tốt với dữ liệu động.
+      parameters:
+        - name: limit
+          in: query
+          description: Số lượng sách tối đa trên mỗi trang.
+          schema:
+            type: integer
+            default: 10
+        - name: after
+          in: query
+          description: "Con trỏ - ID của cuốn sách cuối cùng đã thấy."
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Thành công. Trả về danh sách sách và con trỏ cho trang tiếp theo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+                  next_cursor:
+                    type: integer
+                    nullable: true
+                    description: "ID của cuốn sách cuối cùng trong danh sách. Dùng giá trị này cho tham số 'after' để lấy trang tiếp theo. Null nếu đây là trang cuối."
   /books/{book_id}:
     get:
       tags: [Book Operations]

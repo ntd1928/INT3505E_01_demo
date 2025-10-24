@@ -49,9 +49,17 @@ def update_book(book_id, data):
 
 def delete_book(book_id):
     conn = get_db()
-    conn.execute('DELETE FROM books WHERE id = ?', (book_id,))
+    # Tạo một đối tượng cursor từ connection
+    cursor = conn.cursor()
+    
+    # Thực thi lệnh DELETE thông qua cursor
+    cursor.execute('DELETE FROM books WHERE id = ?', (book_id,))
+    
+    # Commit các thay đổi vào database
     conn.commit()
-    return get_db().changes() > 0
+    
+    # Kiểm tra xem có hàng nào bị ảnh hưởng không (rowcount > 0 nghĩa là xóa thành công)
+    return cursor.rowcount > 0
 
 # === BORROW/RETURN QUERIES ===
 def borrow_book(book_id, user_id):
@@ -160,3 +168,36 @@ def get_borrows_by_user_id(user_id):
     conn = get_db()
     borrows = conn.execute('SELECT * FROM borrows WHERE user_id = ? ORDER BY borrow_date DESC', (user_id,)).fetchall()
     return [dict(b) for b in borrows]
+def get_books_cursor_paginated(limit, after_cursor=None):
+    """
+    Lấy danh sách sách sử dụng phương pháp phân trang bằng con trỏ (ID).
+    """
+    conn = get_db()
+
+    base_query = "SELECT * FROM books"
+    params = []
+
+    # Nếu client cung cấp một 'con trỏ' (ID của cuốn sách cuối cùng họ thấy),
+    # chúng ta sẽ chỉ lấy những cuốn sách có ID lớn hơn con trỏ đó.
+    if after_cursor:
+        base_query += " WHERE id > ?"
+        params.append(after_cursor)
+
+    # Luôn sắp xếp theo ID để đảm bảo thứ tự nhất quán
+    base_query += " ORDER BY id ASC LIMIT ?"
+    params.append(limit)
+
+    results = conn.execute(base_query, tuple(params)).fetchall()
+
+    # Xác định con trỏ cho trang tiếp theo
+    next_cursor = None
+    if results and len(results) == limit:
+        # Nếu số lượng kết quả trả về bằng đúng limit, có khả năng còn trang sau.
+        # Con trỏ tiếp theo chính là ID của cuốn sách cuối cùng trong danh sách này.
+        last_book = results[-1]
+        next_cursor = last_book['id']
+
+    return {
+        "items": [dict(row) for row in results],
+        "next_cursor": next_cursor
+}

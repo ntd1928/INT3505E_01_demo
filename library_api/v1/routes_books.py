@@ -94,3 +94,25 @@ def delete_book(book_id):
         # 204 No Content là response chuẩn cho DELETE thành công
         return Response(status=204)
     return jsonify({"message": "An error occurred during deletion"}), 500
+
+# Demo dùng cursor-based pagination
+@bp.route('/books-cursor', methods=['GET'])
+def get_books_cursor():
+    """
+    Lấy danh sách sách sử dụng phân trang bằng con trỏ (cursor-based).
+    Query Params:
+    - limit: Số lượng item trên mỗi trang (mặc định 10).
+    - after: "Con trỏ" - ID của cuốn sách cuối cùng của trang trước.
+    """
+    limit = request.args.get('limit', 10, type=int)
+    # Lấy con trỏ từ query param 'after'
+    after_cursor = request.args.get('after', type=int)
+
+    books_data = queries.get_books_cursor_paginated(limit=limit, after_cursor=after_cursor)
+    
+    # Cấu trúc response mới, trả về 'data' và 'next_cursor'
+    response = {
+        "data": books_data['items'],
+        "next_cursor": books_data['next_cursor']
+    }
+    return jsonify(response), 200

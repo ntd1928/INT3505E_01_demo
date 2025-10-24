@@ -62,6 +62,15 @@ def init_db(): # Sửa lại: Không cần truyền 'app' vào đây nữa
         cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
             (3, 'Dế Mèn Phiêu Lưu Ký', 'Tô Hoài', 1941, 'borrowed')
         )
+        cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
+            (4, 'Dế Mèn Phiêu Lưu Kytesst11', 'Tô Hoài', 1941, 'borrowed')
+        )
+        cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
+            (4, 'Dế Mèn Phiêu Lưu Kytesst', 'Tô Hoài', 1941, 'borrowed')
+        )
+        cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
+            (5, 'Dế Mèn Phiêu Lưu Ký', 'Tô Hoài', 1941, 'borrowed')
+        )
 
         # Thêm borrows
         cursor.execute("INSERT INTO borrows (book_id, user_id, borrow_date) VALUES (?, ?, ?)",
