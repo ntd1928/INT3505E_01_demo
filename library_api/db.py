@@ -2,16 +2,15 @@
 
 import sqlite3
 import os
-from flask import g, current_app # Import thêm current_app
+from flask import g, current_app, cli
 from datetime import datetime
+from werkzeug.security import generate_password_hash
 
 def get_db():
     """
     Tạo hoặc tái sử dụng kết nối CSDL trong cùng một request.
-    Lấy đường dẫn DB từ config của ứng dụng.
     """
     if "db" not in g:
-        # THAY ĐỔI QUAN TRỌNG: Lấy đường dẫn từ app config, không dùng biến toàn cục
         g.db = sqlite3.connect(
             current_app.config['DATABASE'],
             detect_types=sqlite3.PARSE_DECLTYPES
@@ -27,32 +26,32 @@ def close_db(e=None):
     if db is not None:
         db.close()
 
-def init_db(): # Sửa lại: Không cần truyền 'app' vào đây nữa
+def init_db():
     """
     Thực thi file schema.sql và thêm dữ liệu mẫu.
-    Hàm này sẽ được gọi bởi lệnh CLI, nơi app_context đã tồn tại.
     """
     db = get_db()
     
-    # 1. Tạo bảng từ schema.sql
-    # Lấy đường dẫn schema.sql từ thư mục hiện tại của file db.py
     schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
     with open(schema_path, "r", encoding="utf8") as f:
         db.executescript(f.read())
 
-    # 2. Thêm dữ liệu mẫu (Seeding)
     cursor = db.cursor()
     
-    # Thêm users
     try:
-        cursor.execute("INSERT INTO users (id, name, email, member_since) VALUES (?, ?, ?, ?)",
-            (1, 'Alice', 'alice@example.com', datetime.now().strftime("%Y-%m-%d"))
+        cursor.execute("INSERT INTO users (id, name, email, password, member_since) VALUES (?, ?, ?, ?, ?)",
+            (1, 'Alice', 'alice@example.com', generate_password_hash('alice123'), datetime.now().strftime("%Y-%m-%d"))
         )
-        cursor.execute("INSERT INTO users (id, name, email, member_since) VALUES (?, ?, ?, ?)",
-            (2, 'Bob', 'bob@example.com', datetime.now().strftime("%Y-%m-%d"))
+        cursor.execute("INSERT INTO users (id, name, email, password, member_since) VALUES (?, ?, ?, ?, ?)",
+            (2, 'Bob', 'bob@example.com', generate_password_hash('bob456'), datetime.now().strftime("%Y-%m-%d"))
         )
+        db.commit()
+        print("Added sample users.")
+    except db.IntegrityError:
+        print("Sample users might already exist.")
+        db.rollback()
 
-        # Thêm books
+    try:
         cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
             (1, 'Lão Hạc', 'Nam Cao', 1943, 'available')
         )
@@ -62,36 +61,32 @@ def init_db(): # Sửa lại: Không cần truyền 'app' vào đây nữa
         cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
             (3, 'Dế Mèn Phiêu Lưu Ký', 'Tô Hoài', 1941, 'borrowed')
         )
-        cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
-            (4, 'Dế Mèn Phiêu Lưu Kytesst11', 'Tô Hoài', 1941, 'borrowed')
-        )
-        cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
-            (4, 'Dế Mèn Phiêu Lưu Kytesst', 'Tô Hoài', 1941, 'borrowed')
-        )
-        cursor.execute("INSERT INTO books (id, title, author, year, status) VALUES (?, ?, ?, ?, ?)",
-            (5, 'Dế Mèn Phiêu Lưu Ký', 'Tô Hoài', 1941, 'borrowed')
-        )
+        db.commit()
+        print("Added sample books.")
+    except db.IntegrityError:
+        print("Sample books might already exist.")
+        db.rollback()
 
-        # Thêm borrows
+    try:
         cursor.execute("INSERT INTO borrows (book_id, user_id, borrow_date) VALUES (?, ?, ?)",
             (3, 1, '2023-10-26')
         )
-        
         db.commit()
+        print("Added sample borrow records.")
     except db.IntegrityError:
-        # Dữ liệu có thể đã tồn tại, không cần làm gì cả
-        print("Sample data might already exist.")
-        pass
+        print("Sample borrow records might already exist.")
+        db.rollback()
 
 def init_app(app):
     """
     Hàm đăng ký các chức năng quản lý DB với ứng dụng Flask.
     """
+    # Đăng ký hàm close_db để được gọi sau mỗi request
     app.teardown_appcontext(close_db)
     
+    # Thêm lệnh 'init-db' vào Flask CLI
     @app.cli.command('init-db')
     def init_db_command():
         """Xóa dữ liệu cũ, tạo bảng mới và thêm dữ liệu mẫu."""
-        # Gọi hàm init_db trực tiếp
-        init_db()
-        print('Initialized the database with schema and sample data.')
+        with app.app_context():
+            init_db()

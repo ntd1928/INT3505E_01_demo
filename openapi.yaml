@@ -14,6 +14,8 @@ servers:
 
 # Gắn thẻ để nhóm các endpoints trong UI
 tags:
+  - name: Authentication
+    description: Các API để đăng nhập và lấy token
   - name: User Operations
     description: Các API để quản lý người dùng
   - name: Book Operations
@@ -23,6 +25,32 @@ tags:
 
 # Định nghĩa tất cả các endpoints (đường dẫn)
 paths:
+  # --- Authentication Path ---
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Đăng nhập để lấy JWT Token 🔑
+      description: Cung cấp email và password để nhận về một JWT token có hiệu lực trong 60 phút.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginCredentials'
+      responses:
+        '200':
+          description: Đăng nhập thành công, trả về token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          description: Unauthorized (Email hoặc password không chính xác).
+
   # --- User Paths ---
   /users:
     get:
@@ -31,18 +59,9 @@ paths:
       responses:
         '200':
           description: Thành công. Trả về một mảng các đối tượng người dùng.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/User'
     post:
       tags: [User Operations]
-      summary: Tạo một người dùng mới 👤
+      summary: Tạo một người dùng mới (Đăng ký) 👤
       requestBody:
         required: true
         content:
@@ -53,7 +72,7 @@ paths:
         '201':
           description: Tạo người dùng thành công.
         '400':
-          description: Thiếu trường `name` hoặc `email`.
+          description: Thiếu các trường bắt buộc.
         '409':
           description: Email đã tồn tại.
 
@@ -103,18 +122,15 @@ paths:
         - name: search
           in: query
           description: Tìm kiếm sách theo tiêu đề.
-          schema:
-            type: string
+          schema: { type: string }
         - name: author
           in: query
           description: Lọc sách theo tác giả.
-          schema:
-            type: string
+          schema: { type: string }
         - name: year
           in: query
           description: Lọc sách theo năm xuất bản.
-          schema:
-            type: integer
+          schema: { type: integer }
       responses:
         '200':
           description: Thành công. Trả về danh sách sách và thông tin phân trang.
@@ -141,30 +157,15 @@ paths:
         - name: limit
           in: query
           description: Số lượng sách tối đa trên mỗi trang.
-          schema:
-            type: integer
-            default: 10
+          schema: { type: integer, default: 10 }
         - name: after
           in: query
           description: "Con trỏ - ID của cuốn sách cuối cùng đã thấy."
-          schema:
-            type: integer
+          schema: { type: integer }
       responses:
         '200':
           description: Thành công. Trả về danh sách sách và con trỏ cho trang tiếp theo.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Book'
-                  next_cursor:
-                    type: integer
-                    nullable: true
-                    description: "ID của cuốn sách cuối cùng trong danh sách. Dùng giá trị này cho tham số 'after' để lấy trang tiếp theo. Null nếu đây là trang cuối."
+
   /books/{book_id}:
     get:
       tags: [Book Operations]
@@ -201,7 +202,7 @@ paths:
         - $ref: '#/components/parameters/BookIdParam'
       responses:
         '204':
-          description: Xóa sách thành công (Không có nội dung trả về).
+          description: Xóa sách thành công.
         '404':
           description: Không tìm thấy sách.
         '409':
@@ -224,10 +225,8 @@ paths:
       responses:
         '201':
           description: Mượn sách thành công.
-        '400':
-          description: Thiếu `book_id`.
         '401':
-          description: Unauthorized (Token không hợp lệ hoặc bị thiếu).
+          description: Unauthorized.
         '404':
           description: Không tìm thấy sách.
         '409':
@@ -244,11 +243,11 @@ paths:
         - $ref: '#/components/parameters/BorrowIdParam'
       responses:
         '204':
-          description: Trả sách thành công (Không có nội dung trả về).
+          description: Trả sách thành công.
         '401':
-          description: Unauthorized (Token không hợp lệ hoặc bị thiếu).
+          description: Unauthorized.
         '403':
-          description: Forbidden (Không có quyền trả sách này).
+          description: Forbidden.
         '404':
           description: Không tìm thấy bản ghi mượn sách.
 
@@ -259,13 +258,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: |
-        Nhập token JWT của bạn vào đây.
-        Định dạng: Bearer <token>
-        
-        **Token Mẫu (để test):**
-        - `token_alice_123` (cho user_id = 1)
-        - `token_bob_456` (cho user_id = 2)
+      description: Nhập token JWT của bạn vào đây theo định dạng `Bearer <token>`.
 
   schemas:
     User:
@@ -280,7 +273,15 @@ components:
       properties:
         name: { type: string, example: "Bob" }
         email: { type: string, format: email, example: "bob@example.com" }
-      required: [name, email]
+        password: { type: string, format: password, example: "supersecret" }
+      required: [name, email, password]
+
+    LoginCredentials:
+      type: object
+      properties:
+        email: { type: string, format: email, example: "alice@example.com" }
+        password: { type: string, format: password, example: "supersecret" }
+      required: [email, password]
 
     Book:
       type: object

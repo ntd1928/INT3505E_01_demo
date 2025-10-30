@@ -1,6 +1,9 @@
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def create_app():
     """
@@ -12,9 +15,12 @@ def create_app():
     # Cấu hình database
     db_path = os.path.join(app.instance_path, 'library.db')
     app.config.from_mapping(
+        SECRET_KEY=os.getenv('SECRET_KEY', 'default-secret-key-for-dev'),
         DATABASE=db_path,
     )
     
+    print(f"--- [DEBUG] SECRET_KEY IN USE: {app.config['SECRET_KEY']} ---")
+
     # Đảm bảo thư mục instance tồn tại
     try:
         os.makedirs(app.instance_path)

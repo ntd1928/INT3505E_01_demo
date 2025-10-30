@@ -1,6 +1,6 @@
 # library_api/v1/routes_borrows.py
 
-from flask import request, jsonify, url_for, Response
+from flask import request, jsonify, url_for, Response, g
 from . import bp, token_required
 from .. import queries
 
@@ -32,7 +32,7 @@ def create_borrow_record():
         return jsonify({"message": "Field 'book_id' is required"}), 400
 
     book_id = data['book_id']
-    user_id = request.current_user_id
+    user_id = g.current_user_id 
     
     book = queries.get_book_by_id(book_id)
     if not book:
@@ -58,7 +58,7 @@ def return_book_by_deleting_borrow(borrow_id):
         return jsonify({"message": f"Borrow record with id {borrow_id} not found"}), 404
 
     # (Tùy chọn) Kiểm tra xem người trả có phải là người mượn không
-    if borrow_record['user_id'] != request.current_user_id:
+    if borrow_record['user_id'] != g.current_user_id:
         return jsonify({"message": "You are not authorized to return this book"}), 403
 
     if queries.return_book(borrow_record['book_id']):
@@ -76,7 +76,7 @@ def get_borrow_record(borrow_id):
 @bp.route('/user/borrows', methods=['GET'])
 @token_required
 def get_my_borrow_history():
-    user_id = request.current_user_id
+    user_id = g.current_user_id
     history = queries.get_borrows_by_user_id(user_id)
     history_with_links = [add_hateoas_links_to_borrow(b) for b in history]
     return jsonify({"data": history_with_links}), 200

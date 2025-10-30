@@ -1,5 +1,6 @@
 from .db import get_db
 from datetime import datetime
+from werkzeug.security import generate_password_hash
 
 # === USER QUERIES ===
 def get_all_users():
@@ -16,14 +17,25 @@ def add_user(data):
     conn = get_db()
     cursor = conn.cursor()
     member_since = datetime.now().strftime("%Y-%m-%d")
+    
+    # Băm mật khẩu người dùng cung cấp trước khi lưu vào DB
+    hashed_password = generate_password_hash(data['password'])
+    
     try:
-        cursor.execute('INSERT INTO users (name, email, member_since) VALUES (?, ?, ?)',
-                       (data['name'], data['email'], member_since))
+        # Sửa câu lệnh INSERT để thêm cả cột password
+        cursor.execute('INSERT INTO users (name, email, password, member_since) VALUES (?, ?, ?, ?)',
+                       (data['name'], data['email'], hashed_password, member_since))
         conn.commit()
         new_user_id = cursor.lastrowid
         return get_user_by_id(new_user_id)
-    except conn.IntegrityError: # Bắt lỗi email bị trùng
+    except conn.IntegrityError:
         return None
+def get_user_by_email(email):
+    """Lấy thông tin người dùng dựa trên địa chỉ email."""
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    # Trả về một dictionary nếu tìm thấy user, ngược lại trả về None
+    return dict(user) if user else None
 
 # === BOOK QUERIES ===
 def get_book_by_id(book_id):
@@ -263,3 +275,21 @@ def get_all_users_with_borrows_optimized():
         
     # Trả về danh sách các giá trị của dictionary
     return list(users_by_id.values())
+    
+# === TOKEN BLACKLIST QUERIES ===
+
+def add_jti_to_blacklist(jti):
+    """Thêm một JTI (JWT ID) vào danh sách đen."""
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO token_blacklist (jti) VALUES (?)", (jti,))
+        conn.commit()
+    except conn.IntegrityError:
+        # JTI có thể đã tồn tại, không cần làm gì cả
+        pass
+
+def is_jti_in_blacklist(jti):
+    """Kiểm tra xem một JTI có nằm trong danh sách đen không."""
+    conn = get_db()
+    res = conn.execute("SELECT jti FROM token_blacklist WHERE jti = ?", (jti,)).fetchone()
+    return res is not None
