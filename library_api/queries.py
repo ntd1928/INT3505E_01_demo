@@ -200,4 +200,66 @@ def get_books_cursor_paginated(limit, after_cursor=None):
     return {
         "items": [dict(row) for row in results],
         "next_cursor": next_cursor
-}
+    }
+
+####### N+1 QUERY DEMO & OPTIMIZATION #######
+# Thêm hàm mới này vào cuối file: library_api/queries.py
+
+def get_borrows_for_single_user(user_id):
+    """Lấy tất cả các lượt mượn cho MỘT người dùng. Sẽ được gọi trong vòng lặp."""
+    conn = get_db()
+    # Để đơn giản, chúng ta lấy tiêu đề sách qua JOIN
+    query = """
+        SELECT b.title, br.borrow_date, br.return_date
+        FROM borrows as br
+        JOIN books as b ON br.book_id = b.id
+        WHERE br.user_id = ?
+    """
+    borrows = conn.execute(query, (user_id,)).fetchall()
+    print(f"--- DATABASE HIT: Lấy lượt mượn cho user_id={user_id} ---") # Dòng này để debug
+    return [dict(b) for b in borrows]
+
+# Thêm hàm hiệu quả này vào file: library_api/queries.py
+
+def get_all_users_with_borrows_optimized():
+    """
+    Lấy tất cả user và lịch sử mượn sách của họ một cách hiệu quả.
+    Chỉ sử dụng 2 query, bất kể có bao nhiêu user.
+    """
+    conn = get_db()
+    
+    # --- Query #1: Lấy tất cả users ---
+    users = conn.execute('SELECT * FROM users').fetchall()
+    print("--- DATABASE HIT: Lấy tất cả users ---")
+    
+    if not users:
+        return []
+
+    # Chuẩn bị để xử lý bằng Python
+    user_ids = [user['id'] for user in users]
+    # Tạo một dictionary để dễ dàng truy cập user bằng ID
+    users_by_id = {user['id']: dict(user) for user in users}
+    # Thêm một list trống để chứa các lượt mượn cho mỗi user
+    for user_id in users_by_id:
+        users_by_id[user_id]['borrows'] = []
+
+    # --- Query #2: Lấy TẤT CẢ các lượt mượn của TẤT CẢ các user này trong MỘT LẦN ---
+    # Tạo chuỗi placeholder `(?, ?, ?)` cho mệnh đề IN
+    placeholders = ', '.join(['?'] * len(user_ids))
+    query = f"""
+        SELECT br.user_id, b.title, br.borrow_date, br.return_date
+        FROM borrows as br
+        JOIN books as b ON br.book_id = b.id
+        WHERE br.user_id IN ({placeholders})
+    """
+    all_borrows = conn.execute(query, tuple(user_ids)).fetchall()
+    print(f"--- DATABASE HIT: Lấy TẤT CẢ lượt mượn cho {len(user_ids)} users ---")
+    
+    # --- Xử lý bằng Python (Rất nhanh) ---
+    # Lặp qua danh sách các lượt mượn và "khớp" chúng vào đúng user
+    for borrow in all_borrows:
+        user_id = borrow['user_id']
+        users_by_id[user_id]['borrows'].append(dict(borrow))
+        
+    # Trả về danh sách các giá trị của dictionary
+    return list(users_by_id.values())

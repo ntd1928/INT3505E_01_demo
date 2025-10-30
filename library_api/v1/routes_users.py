@@ -54,3 +54,44 @@ def get_borrows_for_user(user_id):
     borrowed_books = queries.get_borrowed_books_by_user(user_id)
     
     return jsonify({"data": borrowed_books}), 200
+
+######## N+1 QUERY DEMO & OPTIMIZATION #######
+# Thêm route mới này vào file: library_api/v1/routes_users.py
+@bp.route('/users/report/n-plus-1', methods=['GET'])
+def get_users_report_bad():
+    """
+    DEMO LỖI N+1 QUERY: Lấy user và lịch sử mượn sách của họ.
+    """
+    print("\n>>> BẮT ĐẦU REQUEST LỖI N+1 <<<")
+    
+    # --- Query #1 ---
+    # Lấy tất cả người dùng
+    users = queries.get_all_users()
+    print("--- DATABASE HIT: Lấy tất cả users ---")
+
+    response_data = []
+    
+    # --- N Queries tiếp theo ---
+    # Bắt đầu vòng lặp, gây ra N query
+    for user in users:
+        user_dict = dict(user)
+        # Với mỗi user, gọi một query mới để lấy lịch sử mượn sách
+        borrows = queries.get_borrows_for_single_user(user['id'])
+        user_dict['borrows'] = borrows
+        response_data.append(user_dict)
+    
+    print(">>> KẾT THÚC REQUEST LỖI N+1 <<<\n")
+    return jsonify({"data": response_data}), 200
+# Thêm route hiệu quả này vào file: library_api/v1/routes_users.py
+@bp.route('/users/report/optimized', methods=['GET'])
+def get_users_report_good():
+    """
+    DEMO GIẢI PHÁP: Lấy user và lịch sử mượn sách một cách hiệu quả.
+    """
+    print("\n>>> BẮT ĐẦU REQUEST HIỆU QUẢ <<<")
+    
+    # Chỉ cần gọi một hàm duy nhất
+    response_data = queries.get_all_users_with_borrows_optimized()
+    
+    print(">>> KẾT THÚC REQUEST HIỆU QUẢ <<<\n")
+    return jsonify({"data": response_data}), 200
