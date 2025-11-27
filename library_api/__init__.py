@@ -35,6 +35,10 @@ def create_app():
     from .v1 import bp as v1_blueprint
     app.register_blueprint(v1_blueprint, url_prefix='/api/v1')
 
+    # --- ĐĂNG KÝ BLUEPRINT CHO API V2 ---
+    from .v2 import bp as v2_blueprint
+    app.register_blueprint(v2_blueprint, url_prefix='/api/v2')
+
     # Handler lỗi chung để trả về JSON nhất quán
     @app.errorhandler(404)
     def resource_not_found(e):

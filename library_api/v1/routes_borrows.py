@@ -49,9 +49,6 @@ def create_borrow_record():
 @bp.route('/borrows/<int:borrow_id>', methods=['DELETE'])
 @token_required
 def return_book_by_deleting_borrow(borrow_id):
-    """
-    Trả sách bằng cách xóa (kết thúc) một lượt mượn. Đúng chuẩn REST.
-    """
     # Lấy thông tin lượt mượn để kiểm tra
     borrow_record = queries.get_borrow_by_id(borrow_id)
     if not borrow_record:
