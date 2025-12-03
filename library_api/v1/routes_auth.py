@@ -5,10 +5,12 @@ import uuid  # Thêm import uuid để tạo jti
 from datetime import datetime, timedelta
 from flask import request, jsonify, current_app, g
 from werkzeug.security import check_password_hash
-from . import bp, token_required  # Sửa lại import để có cả token_required
+from . import bp, token_required, limiter   # Sửa lại import để có cả token_required
 from .. import queries
 
+
 @bp.route('/auth/login', methods=['POST'])
+@limiter.limit("5 per minute")  # Giới hạn đăng nhập: 5 lần mỗi phút
 def login():
     """
     Xác thực người dùng và trả về một JWT có chứa JTI (JWT ID).
@@ -16,8 +18,13 @@ def login():
     data = request.get_json()
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({"message": "Email và password là bắt buộc."}), 401
+    
+    email = data['email']
+    
+    # Ghi log ở cấp độ INFO
+    current_app.logger.info(f"Login attempt for user: {email}")
 
-    user = queries.get_user_by_email(data['email'])
+    user = queries.get_user_by_email(email)
 
     if not user or not check_password_hash(user['password'], data['password']):
         return jsonify({"message": "Email hoặc password không chính xác."}), 401

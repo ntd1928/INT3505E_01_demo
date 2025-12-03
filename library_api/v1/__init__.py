@@ -8,6 +8,14 @@ from .. import queries
 # Tạo một Blueprint tên là 'v1'
 bp = Blueprint('v1', __name__)
 
+# --- THÊM CÁC IMPORT VÀ KHỞI TẠO LIMITER Ở ĐÂY ---
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
 
 
 import logging # <<< THÊM IMPORT NÀY
@@ -44,11 +52,11 @@ def token_required(f):
             g.current_token_payload = payload
 
         except jwt.ExpiredSignatureError:
-            logging.error("TOKEN DEBUG: ExpiredSignatureError - Token has expired!")
+            current_app.logger.error(f"Expired token received from IP: {request.remote_addr}")
             return jsonify({'message': 'Token has expired!'}), 401
         except jwt.InvalidTokenError as e:
             # In ra lỗi cụ thể từ thư viện PyJWT
-            logging.error(f"TOKEN DEBUG: InvalidTokenError - {str(e)}")
+            current_app.logger.error(f"Invalid token received. Error: {e}")
             return jsonify({'message': 'Token is invalid!'}), 401
         except Exception as e:
             # Bắt các lỗi không mong muốn khác
