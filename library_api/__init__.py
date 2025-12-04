@@ -4,6 +4,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from prometheus_flask_exporter import PrometheusMetrics
 
+import pybreaker
 import logging
 from logging.config import dictConfig
 
@@ -42,6 +43,12 @@ def create_app():
     Hàm khởi tạo ứng dụng Flask (Application Factory).
     """
     app = Flask(__name__, instance_relative_config=True)
+    # --- KHỞI TẠO CIRCUIT BREAKER MỘT LẦN DUY NHẤT ---
+    # Gắn nó vào đối tượng app.config để các phần khác có thể truy cập
+    app.config['NOTIFICATION_BREAKER'] = pybreaker.CircuitBreaker(
+        fail_max=5,
+        reset_timeout=60
+    )
     metrics = PrometheusMetrics(app)
     CORS(app)
 

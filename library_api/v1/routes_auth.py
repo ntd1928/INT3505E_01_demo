@@ -27,6 +27,7 @@ def login():
     user = queries.get_user_by_email(email)
 
     if not user or not check_password_hash(user['password'], data['password']):
+        current_app.logger.warning(f"Failed login attempt for user: {email} (Invalid credentials)")
         return jsonify({"message": "Email hoặc password không chính xác."}), 401
 
     # Tạo JWT payload, bao gồm cả 'jti' để định danh token

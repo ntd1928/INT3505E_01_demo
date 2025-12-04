@@ -69,4 +69,4 @@ def token_required(f):
 
 # Import các file route ở cuối để tránh lỗi circular import
 # Các file này sẽ sử dụng đối tượng `bp` đã được tạo ở trên.
-from . import routes_books, routes_borrows, routes_users, routes_auth, routes_demo
+from . import routes_books, routes_borrows, routes_users, routes_auth, routes_demo, routes_external
